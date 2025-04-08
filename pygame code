@@ -1,0 +1,151 @@
+### card.py
+import pygame
+
+class Card:
+    def __init__(self, rank, suit):
+        self.rank = rank
+        self.suit = suit
+        self.image = self.load_image()
+
+    def __str__(self):
+        return f"{self.rank}{self.suit}"
+
+    def load_image(self):
+        filename = f"assets/cards/{self.rank}{self.suit}.png"
+        image = pygame.image.load(filename)
+        return pygame.transform.scale(image, (80, 120))
+
+
+### hand.py
+class Hand:
+    def __init__(self, name=""):
+        self.cards = []
+        self.name = name
+
+    def add(self, card):
+        self.cards.append(card)
+
+    def clear(self):
+        self.cards = []
+
+    def give(self, card, other_hand):
+        self.cards.remove(card)
+        other_hand.add(card)
+
+    def __str__(self):
+        return f"{self.name}: " + ', '.join(str(card) for card in self.cards)
+
+
+### deck.py
+import random
+from card import Card
+
+class Deck:
+    ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
+    suits = ["c", "d", "h", "s"]
+
+    def __init__(self):
+        self.cards = [Card(rank, suit) for suit in self.suits for rank in self.ranks]
+
+    def shuffle(self):
+        random.shuffle(self.cards)
+
+    def deal(self, hand, num=1):
+        for _ in range(num):
+            if self.cards:
+                hand.add(self.cards.pop())
+
+
+### rename_cards.py
+import os
+
+suits_map = {
+    'Clubs': 'c',
+    'Diamonds': 'd',
+    'Hearts': 'h',
+    'Spades': 's'
+}
+
+ranks_map = {
+    'ace': 'A', '2': '2', '3': '3', '4': '4', '5': '5',
+    '6': '6', '7': '7', '8': '8', '9': '9', '10': '10',
+    'jack': 'J', 'queen': 'Q', 'king': 'K'
+}
+
+source_folder = 'path/to/original/cards'  # Change to actual path
+output_folder = 'assets/cards'
+
+os.makedirs(output_folder, exist_ok=True)
+
+for filename in os.listdir(source_folder):
+    if filename.endswith('.png') and 'Back' not in filename:
+        name = filename.replace('.png', '')
+        for suit_full, suit_code in suits_map.items():
+            if suit_full in name:
+                for rank_name, rank_code in ranks_map.items():
+                    if rank_name in name.lower():
+                        new_name = f"{rank_code}{suit_code}.png"
+                        src = os.path.join(source_folder, filename)
+                        dst = os.path.join(output_folder, new_name)
+                        os.rename(src, dst)
+                        break
+
+
+### main.py
+import pygame
+import sys
+from deck import Deck
+from hand import Hand
+
+pygame.init()
+screen = pygame.display.set_mode((800, 600))
+pygame.display.set_caption("Blackjack")
+font = pygame.font.SysFont(None, 36)
+clock = pygame.time.Clock()
+
+WHITE = (255, 255, 255)
+GREEN = (0, 128, 0)
+BLACK = (0, 0, 0)
+
+# Buttons
+hit_button = pygame.Rect(100, 500, 100, 50)
+stand_button = pygame.Rect(250, 500, 100, 50)
+
+deck = Deck()
+deck.shuffle()
+player = Hand("Player")
+dealer = Hand("Dealer")
+deck.deal(player, 2)
+deck.deal(dealer, 2)
+
+game_active = True
+
+def draw_hand(hand, x, y):
+    for idx, card in enumerate(hand.cards):
+        screen.blit(card.image, (x + idx * 90, y))
+
+def draw_buttons():
+    pygame.draw.rect(screen, GREEN, hit_button)
+    pygame.draw.rect(screen, GREEN, stand_button)
+    screen.blit(font.render("Hit", True, BLACK), (hit_button.x + 25, hit_button.y + 10))
+    screen.blit(font.render("Stand", True, BLACK), (stand_button.x + 10, stand_button.y + 10))
+
+while True:
+    screen.fill((34, 139, 34))
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        elif event.type == pygame.MOUSEBUTTONDOWN and game_active:
+            if hit_button.collidepoint(event.pos):
+                deck.deal(player)
+            elif stand_button.collidepoint(event.pos):
+                game_active = False
+
+    draw_hand(player, 100, 350)
+    draw_hand(dealer, 100, 100)
+    draw_buttons()
+
+    pygame.display.flip()
+    clock.tick(30)
